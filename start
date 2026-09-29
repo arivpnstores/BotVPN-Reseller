@@ -1,0 +1,201 @@
+#!/bin/bash
+# BotVPN-Reseller Installer
+# Usage: bash start install
+
+SUDO=""
+[ "$(id -u)" -eq 0 ] || SUDO="sudo"
+
+# Colors
+green="\e[38;5;82m"
+red="\e[38;5;196m"
+neutral="\e[0m"
+orange="\e[38;5;130m"
+blue="\e[38;5;39m"
+yellow="\e[38;5;226m"
+bold_white="\e[1;37m"
+reset="\e[0m"
+
+APP_DIR="/root/BotVPN-Reseller"
+REPO_URL="https://github.com/USERNAME/BotVPN-Reseller.git"  # GANTI USERNAME
+
+print_header() {
+    clear
+    echo -e "${orange}─────────────────────────────────────────${reset}"
+    echo -e "   ${green}.:::. BOTVPN RESELLER INSTALLER .:::.   ${reset}"
+    echo -e "${orange}─────────────────────────────────────────${reset}"
+}
+
+install_deps() {
+    echo -e "${blue}[1/5] Installing dependencies...${reset}"
+    timedatectl set-timezone Asia/Jakarta || true
+
+    if ! command -v node >/dev/null 2>&1; then
+        curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - || { echo -e "${red}Failed to download Node.js setup${reset}"; exit 1; }
+        apt-get install -y nodejs || { echo -e "${red}Failed to install Node.js${reset}"; exit 1; }
+    else
+        echo -e "${green}Node.js is already installed, skipping...${reset}"
+    fi
+
+    apt-get install -y jq git curl
+    npm install -g npm@latest
+    npm install -g pm2
+}
+
+setup_app() {
+    clear
+    echo -e "${orange}─────────────────────────────────────────${reset}"
+    echo -e "   ${green}.:::. BOTVPN RESELLER SETUP .:::.   ${reset}"
+    echo -e "${orange}─────────────────────────────────────────${reset}"
+
+    REPO_URL="https://github.com/USERNAME/BotVPN-Reseller.git"  # GANTI USERNAME
+    APP_DIR="/root/BotVPN-Reseller"
+
+    # Clone if not exists
+    if [ ! -f "$APP_DIR/app.js" ]; then
+        rm -rf "$APP_DIR"
+        git clone "$REPO_URL" "$APP_DIR" || { echo -e "${red}Clone failed${reset}"; exit 1; }
+    fi
+
+    cd "$APP_DIR"
+    npm install --no-audit --no-fund
+
+    # INPUT UMUM
+    read -p "Masukkan token bot: " token
+    while [ -z "$token" ]; do
+        echo "Token tidak boleh kosong!"
+        read -p "Masukkan token bot: " token
+    done
+
+    read -p "Masukkan admin ID (Telegram ID): " adminid
+    read -p "Masukkan nama store: " namastore
+    read -p "Masukkan ID GROUP NOTIF (format -100...): " groupid
+    read -p "Masukkan API BASE URL (https://api.rajaserver.web.id/api/v1): " apibase
+    [ -z "$apibase" ] && apibase="https://api.rajaserver.web.id/api/v1"
+    read -p "Masukkan API KEY (rsl_...): " apikey
+    while [ -z "$apikey" ]; do
+        echo "API Key tidak boleh kosong!"
+        read -p "Masukkan API KEY (rsl_...): " apikey
+    done
+
+    # PAYMENT GATEWAY
+    echo ""
+    echo "Pilih Payment Gateway:"
+    echo "1. SHOPEEPAY"
+    echo "2. GOPAY"
+    echo "3. ORKUT"
+    read -p "Masukkan pilihan (1/2/3): " pilihan
+
+    while [[ "$pilihan" != "1" && "$pilihan" != "2" && "$pilihan" != "3" ]]; do
+        echo "Pilihan tidak valid!"
+        read -p "Masukkan pilihan (1/2/3): " pilihan
+    done
+
+    # WRITE .vars.json
+    case "$pilihan" in
+        1)
+            read -p "Masukkan SHOPEEPAY_BASE_URL (http://localhost:2007): " shopeeurl
+            [ -z "$shopeeurl" ] && shopeeurl="http://localhost:2007"
+            rm -f /root/BotVPN-Reseller/.vars.json
+            cat >/root/BotVPN-Reseller/.vars.json <<EOF
+{
+  "BOT_TOKEN": "$token",
+  "USER_ID": "$adminid",
+  "NAMA_STORE": "$namastore",
+  "GROUP_ID": "$groupid",
+  "PORT": "6970",
+  "PAYMENT": "SHOPEEPAY",
+  "GOPAY_KEY": "",
+  "DATA_QRIS_ORKUT": "",
+  "AUTH_USERNAME_ORKUT": "",
+  "AUTH_TOKEN_ORKUT": "",
+  "SHOPEEPAY_BASE_URL": "$shopeeurl",
+  "API_BASE_URL": "$apibase",
+  "API_KEY": "$apikey",
+  "REQUIRED_CHANNEL": "@CHANNEL_ANDA",
+  "REQUIRED_GROUP": "@GROUP_ANDA",
+  "ADMIN_USERNAME": "Admin",
+  "CREATOR": "Admin"
+}
+EOF
+            ;;
+        2)
+            read -p "Masukkan GOPAY_KEY: " gopaykey
+            rm -f /root/BotVPN-Reseller/.vars.json
+            cat >/root/BotVPN-Reseller/.vars.json <<EOF
+{
+  "BOT_TOKEN": "$token",
+  "USER_ID": "$adminid",
+  "NAMA_STORE": "$namastore",
+  "GROUP_ID": "$groupid",
+  "PORT": "6970",
+  "PAYMENT": "GOPAY",
+  "GOPAY_KEY": "$gopaykey",
+  "DATA_QRIS_ORKUT": "",
+  "AUTH_USERNAME_ORKUT": "",
+  "AUTH_TOKEN_ORKUT": "",
+  "SHOPEEPAY_BASE_URL": "http://localhost:2007",
+  "API_BASE_URL": "$apibase",
+  "API_KEY": "$apikey",
+  "REQUIRED_CHANNEL": "@CHANNEL_ANDA",
+  "REQUIRED_GROUP": "@GROUP_ANDA",
+  "ADMIN_USERNAME": "Admin",
+  "CREATOR": "Admin"
+}
+EOF
+            ;;
+        3)
+            read -p "Masukkan DATA_QRIS_ORKUT: " dataqris
+            read -p "Masukkan AUTH_USERNAME_ORKUT: " authuser
+            read -p "Masukkan AUTH_TOKEN_ORKUT: " authtoken
+            rm -f /root/BotVPN-Reseller/.vars.json
+            cat >/root/BotVPN-Reseller/.vars.json <<EOF
+{
+  "BOT_TOKEN": "$token",
+  "USER_ID": "$adminid",
+  "NAMA_STORE": "$namastore",
+  "GROUP_ID": "$groupid",
+  "PORT": "6970",
+  "PAYMENT": "ORKUT",
+  "GOPAY_KEY": "",
+  "DATA_QRIS_ORKUT": "$dataqris",
+  "AUTH_USERNAME_ORKUT": "$authuser",
+  "AUTH_TOKEN_ORKUT": "$authtoken",
+  "SHOPEEPAY_BASE_URL": "http://localhost:2007",
+  "API_BASE_URL": "$apibase",
+  "API_KEY": "$apikey",
+  "REQUIRED_CHANNEL": "@CHANNEL_ANDA",
+  "REQUIRED_GROUP": "@GROUP_ANDA",
+  "ADMIN_USERNAME": "Admin",
+  "CREATOR": "Admin"
+}
+EOF
+            ;;
+    esac
+
+    echo -e "${green}Setup config selesai!${reset}"
+}
+
+start_bot() {
+    echo -e "${blue}[5/5] Starting bot...${reset}"
+    pm2 start ecosystem.config.js
+    pm2 save
+    pm2 startup
+    sleep 2
+    echo -e "${green}BotVPN-Reseller started!${reset}"
+    echo "Cek status: pm2 status"
+    echo "Lihat log: pm2 logs botvpn-reseller"
+}
+
+main() {
+    if [[ ${1} != "install" ]]; then
+        echo -e "${red}Usage: bash start install${reset}"
+        exit 1
+    fi
+
+    print_header
+    install_deps
+    setup_app
+    start_bot
+}
+
+main "$@"
