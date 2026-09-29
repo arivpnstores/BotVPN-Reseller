@@ -1,5 +1,7 @@
 # BotVPN-Reseller
 
+**Instalasi cepat:** `bash <(curl -fsSL https://github.com/arivpnstores/BotVPN-Reseller/raw/main/start)`
+
 Bot Telegram **reseller** dengan menu & alur **sama seperti BotVPN**, bedanya:
 
 - **Daftar server diambil dari API BotVPN** (bukan dari database sendiri).
