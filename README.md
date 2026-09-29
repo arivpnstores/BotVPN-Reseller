@@ -12,20 +12,20 @@ Bot Telegram **reseller** dengan menu & alur **sama seperti BotVPN**, bedanya:
 ## Arsitektur
 
 ```
-                     ┌──────────────────────────────┐
-  Reseller User ───▶ │   BotVPN-Reseller (bot ini)  │
-                     │  • Menu & alur = BotVPN      │
-                     │  • Saldo/akun lokal (SQLite) │
-                     │  • TopUp QRIS sendiri        │
-                     └───────────────┬──────────────┘
-                                     │ HTTPS + Bearer API Key
-                                     ▼
-                     ┌──────────────────────────────┐
-                     │   API BotVPN (server utama)  │
-                     │   /api/v1/*                  │
-                     └───────────────┬──────────────┘
-                                     ▼
-                        Panel VPN / NadiaVPN / Naytra
+                      ┌──────────────────────────────┐
+   Reseller User ───▶ │   BotVPN-Reseller (bot ini)  │
+                      │  • Menu & alur = BotVPN      │
+                      │  • Saldo/akun lokal (SQLite) │
+                      │  • TopUp QRIS sendiri        │
+                      └───────────────┬──────────────┘
+                                      │ HTTPS + Bearer API Key
+                                      ▼
+                      ┌──────────────────────────────┐
+                      │   API BotVPN (server utama)  │
+                      │   /api/v1/*                  │
+                      └───────────────┬──────────────┘
+                                      ▼
+                         Panel VPN / CloudFront API / Edu Direct API
 ```
 
 Dua lapis saldo:
@@ -123,7 +123,7 @@ BotVPN-Reseller/
 │   ├── server-store.js        # Akses tabel Server lokal
 │   ├── create.js | renew.js | del.js | lock.js | unlock.js
 │   ├── change-ip.js | trial.js | sshcf.js      # Proxy ke API
-│   ├── nadiavpn.js | naytra.js                 # Proxy ke API
+│   ├── cloudfront.js | edudirect.js            # Proxy ke API
 │   ├── purchase-flow.js | confirmation.js | task-queue.js
 │   ├── button-style.js | error-utils.js | i18n.js | reseller.js | shopee-pay.js
 │   └── ...

@@ -248,7 +248,7 @@ const shopeePay = require('./modules/shopee-pay');
 
 // Toggle VPN CloudFront PRIVATE (btn_sshcf / menu_sshcf) saja.
 // VPN CloudFront (API) / btn_vpncf tidak terpengaruh.
-let enableVpnCf = true;
+let enableVpnCf = vars.ENABLE_VPNCF !== false;
 
 /* Trial CloudFront: tidak ada batas harian, tapi ada jeda antar percobaan.
    Panel nadiavpn membalas "Too Many Attempts." kalau /vpn/trial dipanggil
@@ -2100,6 +2100,15 @@ bot.command('togglevpncf', async (ctx) => {
   if (!adminIds.includes(userId)) return ctx.reply('⛔ Anda tidak punya izin.');
 
   enableVpnCf = !enableVpnCf;
+  try {
+    const filePath = path.join(__dirname, '.vars.json');
+    const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    data.ENABLE_VPNCF = enableVpnCf;
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+    vars.ENABLE_VPNCF = enableVpnCf;
+  } catch (e) {
+    logger.error('Failed to update ENABLE_VPNCF: ' + e.message);
+  }
   const msgKey = enableVpnCf ? 'vpncf_toggle_on' : 'vpncf_toggle_off';
   ctx.reply(t(userId, msgKey), { parse_mode: 'HTML' });
   logger.info(`VPN CloudFront Private diubah menjadi ${enableVpnCf ? 'ON' : 'OFF'} oleh admin ${userId}`);
