@@ -15,5 +15,6 @@
   "REQUIRED_CHANNEL": "@CHANNEL_ANDA",
   "REQUIRED_GROUP": "@GROUP_ANDA",
   "ADMIN_USERNAME": "Admin",
-  "CREATOR": "Admin"
+  "CREATOR": "Admin",
+  "ENABLE_VPNCF": true
 }

@@ -83,11 +83,14 @@ Langkah di bot BotVPN:
      "SHOPEEPAY_BASE_URL": "http://localhost:2007",
      "API_BASE_URL": "https://api.rajaserver.web.id/api/v1",
      "API_KEY": "rsl_xxxxxxxxx",
-     "REQUIRED_CHANNEL": "@channel_wajib_join",
-     "REQUIRED_GROUP": "@group_wajib_join"
-   }
-   ```
-   `REQUIRED_CHANNEL` / `REQUIRED_GROUP` opsional (untuk gate wajib join).
+      "REQUIRED_CHANNEL": "@channel_wajib_join",
+      "REQUIRED_GROUP": "@group_wajib_join",
+      "ENABLE_VPNCF": true
+    }
+    ```
+    `REQUIRED_CHANNEL` / `REQUIRED_GROUP` opsional (untuk gate wajib join).
+    `ENABLE_VPNCF` = status fitur **VPN CloudFront Private** (diubah lewat `/togglevpncf`
+    dan langsung tersimpan permanen di file ini).
 3. **Jalankan**
    ```bash
    node app.js
