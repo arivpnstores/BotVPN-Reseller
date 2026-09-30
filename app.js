@@ -248,7 +248,8 @@ const shopeePay = require('./modules/shopee-pay');
 
 // Toggle VPN CloudFront PRIVATE (btn_sshcf / menu_sshcf) saja.
 // VPN CloudFront (API) / btn_vpncf tidak terpengaruh.
-let enableVpnCf = vars.ENABLE_VPNCF !== false;
+// Nilai final diisi dari .vars.json setelah `vars` ter-load (lihat bawah).
+let enableVpnCf = true;
 
 /* Trial CloudFront: tidak ada batas harian, tapi ada jeda antar percobaan.
    Panel nadiavpn membalas "Too Many Attempts." kalau /vpn/trial dipanggil
@@ -344,6 +345,9 @@ function saveTrialAccess(userId) {
 
 const fs = require('fs');
 const vars = JSON.parse(fs.readFileSync(path.join(__dirname, '.vars.json'), 'utf8'));
+
+// Terapkan status toggle VPN CloudFront Private yang tersimpan permanen.
+if (vars.ENABLE_VPNCF === false) enableVpnCf = false;
 
 const BOT_TOKEN = vars.BOT_TOKEN;
 const port = vars.PORT || 6969;
