@@ -45,28 +45,27 @@ install_deps() {
 
   $SUDO apt-get update -qq || die "apt-get update gagal. Pastikan OS Debian/Ubuntu."
 
-  if ! command -v git >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1; then
-    $SUDO apt-get install -y git curl ca-certificates || die "Install git/curl gagal."
+  # git/curl + toolchain wajib untuk native module (sqlite3, sharp).
+  if ! command -v git >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1 \
+     || ! command -v g++ >/dev/null 2>&1 || ! command -v python3 >/dev/null 2>&1; then
+    $SUDO apt-get install -y git curl ca-certificates build-essential python3 \
+      || die "Install dependency sistem gagal."
   fi
 
-  if ! command -v node >/dev/null 2>&1; then
+  # Node.js 20 (LTS). sqlite3 5.1.7 hanya punya prebuilt binary sampai Node 20/21;
+  # di Node 22 (ABI 127) binding-nya tidak ditemukan dan harus compile dari source.
+  NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)"
+  if [ "$NODE_MAJOR" -ne 20 ]; then
+    echo -e "${blue}Mengpasang Node.js 20 (LTS)...${reset}"
     curl -fsSL https://deb.nodesource.com/setup_20.x | $SUDO -E bash - || die "Download setup Node.js gagal."
     $SUDO apt-get install -y nodejs || die "Install Node.js gagal."
   else
-    echo -e "${green}Node.js sudah terpasang, skip...${reset}"
+    echo -e "${green}Node.js 20 sudah terpasang, skip...${reset}"
   fi
 
-  # Pastikan versi Node >= 18 (dibutuhkan telegraf/sqlite3).
-  NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)"
-  if [ "$NODE_MAJOR" -lt 18 ]; then
-    curl -fsSL https://deb.nodesource.com/setup_20.x | $SUDO -E bash - || die "Upgrade Node.js gagal."
-    $SUDO apt-get install -y nodejs || die "Install Node.js gagal."
-  fi
-
-  [ -x "$APP_DIR/../.pm2bin" ] || true
   $SUDO npm install -g npm@latest >/dev/null 2>&1 || true
 
-  if ! command -v pm2 >/dev/null 2>&1 && [ ! -x "$APP_DIR/node_modules/.bin/pm2" ]; then
+  if ! command -v pm2 >/dev/null 2>&1; then
     $SUDO npm install -g pm2 || die "Install PM2 gagal."
   fi
 }
@@ -88,6 +87,15 @@ install_npm() {
   cd "$APP_DIR" || die "Gagal masuk ke $APP_DIR"
   npm install --no-audit --no-fund || die "npm install gagal."
   mkdir -p logs
+
+  # sqlite3 punya binding native. Kalau prebuilt tidak cocok dengan versi Node,
+  # compile ulang dari source (butuh build-essential + python3, sudah dipasang di atas).
+  if ! node -e "require('sqlite3')" >/dev/null 2>&1; then
+    echo -e "${yellow}Binding sqlite3 tidak ditemukan, compile dari source...${reset}"
+    npm rebuild sqlite3 --build-from-source || die "Compile sqlite3 gagal."
+    node -e "require('sqlite3')" >/dev/null 2>&1 || die "Binding sqlite3 tetap gagal dimuat."
+  fi
+  echo -e "${green}Dependency siap.${reset}"
 }
 
 write_vars() {

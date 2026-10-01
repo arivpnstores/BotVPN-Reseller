@@ -88,9 +88,17 @@ Langkah di bot BotVPN:
       "ENABLE_VPNCF": true
     }
     ```
-    `REQUIRED_CHANNEL` / `REQUIRED_GROUP` opsional (untuk gate wajib join).
-    `ENABLE_VPNCF` = status fitur **VPN CloudFront Private** (diubah lewat `/togglevpncf`
-    dan langsung tersimpan permanen di file ini).
+`REQUIRED_CHANNEL` / `REQUIRED_GROUP` opsional (untuk gate wajib join).
+   `ENABLE_VPNCF` = status fitur **VPN CloudFront Private** (diubah lewat `/togglevpncf`
+   dan langsung tersimpan permanen di file ini).
+
+   **Catatan Node.js:** gunakan **Node.js 20 (LTS)**. `sqlite3` 5.1.7 hanya punya
+   prebuilt binary sampai Node 20/21; di Node 22+ binding native-nya tidak ditemukan
+   (`Could not locate the bindings file`). Kalau terlanjur pakai Node 22, perbaiki dengan:
+   ```bash
+   apt-get install -y build-essential python3
+   cd BotVPN-Reseller && npm rebuild sqlite3 --build-from-source
+   ```
 3. **Jalankan**
    ```bash
    node app.js
