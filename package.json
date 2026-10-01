@@ -15,6 +15,10 @@
     "telegraf": "^4.16.3",
     "winston": "^3.17.0"
   },
+  "allowScripts": {
+    "sqlite3": true,
+    "sharp": true
+  },
   "engines": {
     "node": ">=18.0.0"
   },
