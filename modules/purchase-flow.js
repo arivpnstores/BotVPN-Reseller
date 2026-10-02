@@ -443,29 +443,25 @@ class PurchaseFlow {
   }
 
   async generateGopayQRIS(ctx, amount, uniqueCode) {
-    const res = await axios.post(
-      'https://v1-gateway.autogopay.site/qris/generate',
-      { amount: Number(amount) },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.config.vars.GOPAY_KEY}`
-        },
-        timeout: 15000
-      }
-    );
+    const gopayQris = require('./gopay-qris');
+    const res = await gopayQris.createQRIS(Number(amount), this.config.vars);
 
-    if (!res.data?.success) throw new Error('Gagal create QRIS GOPAY');
+    if (!res?.success) throw new Error('Gagal create QRIS GOPAY');
 
-    const data = res.data.data;
+    const data = res.data;
     const qrImageUrl = data.qr_url;
+    const checkId = data.check_id;
+    const checkUrl = data.check_url;
+    const timeoutMinutes = data.timeout_minutes || 15;
     if (!qrImageUrl) throw new Error('QR URL kosong');
 
     const safeQrUrl = encodeURI(String(qrImageUrl).trim());
     const caption =
       t(ctx.from.id, 'pay_detail_title') + '\n\n' +
-      t(ctx.from.id, 'pay_total', { amount: Number(amount).toLocaleString('id-ID') }) + '\n' +
-      t(ctx.from.id, 'pay_expired_minutes', { minutes: 15 }) + '\n' +
+      t(ctx.from.id, 'pay_total', { amount: Number(data.amount).toLocaleString('id-ID') }) + '\n' +
+      t(ctx.from.id, 'pay_purchase', { amount: Number(amount).toLocaleString('id-ID') }) + '\n' +
+      (data.uniqueNumber > 0 ? t(ctx.from.id, 'pay_admin_fee', { amount: Number(data.uniqueNumber).toLocaleString('id-ID') }) + '\n' : '') +
+      '\n' + t(ctx.from.id, 'pay_expired_minutes', { minutes: timeoutMinutes }) + '\n' +
       t(ctx.from.id, 'pay_transfer_exact') + '\n\n' +
       t(ctx.from.id, 'pay_click_qris', { url: safeQrUrl }) + '\n' +
       t(ctx.from.id, 'pay_invoice', { invoice: uniqueCode });
@@ -477,9 +473,28 @@ class PurchaseFlow {
       ]}
     });
 
-    const transactionId = data.trx_id || data.id || data.transaction_id || '';
+    return { qrImage: qrImageUrl, qrMessageId: qrMessage.message_id, adminFee: data.uniqueNumber || 0, transactionId: checkId, checkUrl };
+  }
 
-    return { qrImage: qrImageUrl, qrMessageId: qrMessage.message_id, adminFee: 0, transactionId };
+  async checkGopayStatus(checkId, vars) {
+    const gopayQris = require('./gopay-qris');
+    const res = await gopayQris.checkPayment(checkId, vars);
+
+    if (!res?.success) {
+      return { paid: false, status: null };
+    }
+
+    const status = res.status;
+    const paid = status === 'PAID';
+
+    return {
+      paid,
+      status,
+      amount: res.transaction?.real_gross_amount || res.transaction?.gross_amount,
+      completeTime: res.transaction?.settlement_time,
+      transactionId: res.transaction?.id || res.check_id,
+      transactionData: res.transaction
+    };
   }
 
   async generateShopeePayQRIS(ctx, amount, uniqueCode) {

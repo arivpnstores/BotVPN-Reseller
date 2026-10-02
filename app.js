@@ -3351,22 +3351,14 @@ bot.action(/^cek_topup_(.+)$/, async (ctx) => {
       }
 
     } else if (vars.PAYMENT === 'GOPAY') {
-      // fallback: cek status GOPAY untuk transaksi ini
-      const res = await axios.post(
-        "https://v1-gateway.autogopay.site/qris/status",
-        { transaction_id: deposit.transactionId },
-        {
-          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GOPAY_KEY}` },
-          timeout: 15000
-        }
-      );
+      const gopayQris = require('./modules/gopay-qris');
+      const res = await gopayQris.checkPayment(deposit.transactionId, vars);
 
-      const data = res.data?.data;
-      if (!data) return ctx.reply('⚠️ Gagal ambil status GOPAY.');
-      const status = data.transaction_status;
-      if (status !== 'settlement') return ctx.reply(`❌ Status: ${status}. Belum settlement.`);
+      if (!res?.success) return ctx.reply('⚠️ Gagal ambil status GOPAY.');
+      const status = res.status;
+      if (status !== 'PAID') return ctx.reply(`❌ Status: ${status}. Belum dibayar.`);
 
-      const success = await processMatchingPaymentAtomic(deposit, data, code);
+      const success = await processMatchingPaymentAtomic(deposit, res.transactionData || res, code);
       if (success) {
         delete global.pendingDeposits[code];
         try { db.run('DELETE FROM pending_deposits WHERE unique_code = ?', [code]); } catch (e) {}
@@ -10351,42 +10343,33 @@ async function processDeposit(ctx, amount) {
     let qrMessage = null;
 
     // ======================
-    // GOPAY (NO FEE)
+    // GOPAY (QRIS via Local Proxy)
     // ======================
     if (vars.PAYMENT === "GOPAY") {
-      finalAmount = Number(amount);
-      adminFee = 0;
+      const gopayQris = require('./modules/gopay-qris');
+      const res = await gopayQris.createQRIS(Number(amount), vars);
 
-      const res = await axios.post(
-        "https://v1-gateway.autogopay.site/qris/generate",
-        { amount: finalAmount },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${GOPAY_KEY}`
-          },
-          timeout: 15000
-        }
-      );
-
-      if (!res.data?.success) {
+      if (!res?.success) {
         throw new Error("Gagal create QRIS GOPAY");
       }
 
-      const data = res.data.data;
+      const data = res.data;
+      finalAmount = Number(data.amount);
+      adminFee = data.uniqueNumber || 0;
 
-      transactionId = data.transaction_id;
+      transactionId = data.check_id;
       qrImageUrl = data.qr_url;
 
       if (!qrImageUrl) throw new Error("QR URL kosong");
 
-      // kirim caption + link QR
       const safeQrUrl = encodeURI(String(qrImageUrl).trim());
+      const timeoutMinutes = data.timeout_minutes || 15;
       const caption =
         t(userId, 'pay_detail_title') + '\n\n' +
-        t(userId, 'pay_total', { amount: finalAmount }) + '\n' +
-        t(userId, 'pay_topup', { amount }) + '\n' +
-        '\n' + t(userId, 'pay_expired_10min') + '\n' +
+        t(userId, 'pay_total', { amount: finalAmount.toLocaleString('id-ID') }) + '\n' +
+        t(userId, 'pay_topup', { amount: Number(amount).toLocaleString('id-ID') }) + '\n' +
+        (adminFee > 0 ? t(userId, 'pay_admin_fee', { amount: adminFee.toLocaleString('id-ID') }) + '\n' : '') +
+        '\n' + t(userId, 'pay_expired_minutes', { minutes: timeoutMinutes }) + '\n' +
         t(userId, 'pay_transfer_exact') + '\n\n' +
         t(userId, 'pay_click_qris', { url: safeQrUrl }) + '\n';
 
@@ -10578,25 +10561,12 @@ async function checkQRISStatus() {
 
       // PROVIDER-SPECIFIC LOGIC
       if (vars.PAYMENT === "GOPAY") {
-        // Cek status via API GoPay
-        const res = await axios.post(
-          "https://v1-gateway.autogopay.site/qris/status",
-          { transaction_id: deposit.transactionId },
-          {
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${GOPAY_KEY}`
-            },
-            timeout: 15000
-          }
-        );
+        const gopayQris = require('./modules/gopay-qris');
+        const res = await gopayQris.checkPayment(deposit.transactionId, vars);
+        if (!res?.success) continue;
 
-        const data = res.data?.data;
-        if (!data) continue;
-
-        const status = data.transaction_status;
-        //logger.info(`🔍 ${uniqueCode} | ${status}`);
-        if (status !== "settlement") continue;
+        const status = res.status;
+        if (status !== "PAID") continue;
 
        //logger.info(`💰 PEMBAYARAN MASUK ${uniqueCode}`);
         const success = await processMatchingPaymentAtomic(deposit, data, uniqueCode);
