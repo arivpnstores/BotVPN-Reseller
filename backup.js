@@ -22,7 +22,7 @@ async function runBackup(bot, adminId) {
 }
 
 function startAutoBackup(bot, adminId) {
-  console.log('[BACKUP] Auto backup scheduler started (every 1 hour)');
+  console.log('[BACKUP] Auto backup scheduler started (every 30 minutes)');
 
   runBackup(bot, adminId).then(results => {
     console.log('[BACKUP INITIAL]', results.join(' | '));
@@ -30,7 +30,7 @@ function startAutoBackup(bot, adminId) {
 
   setInterval(() => {
     runBackup(bot, adminId).then(results => {
-      console.log('[BACKUP HOURLY]', results.join(' | '));
+      console.log('[BACKUP 30MIN]', results.join(' | '));
     });
   }, 30 * 60 * 1000);
 }
